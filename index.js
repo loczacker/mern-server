@@ -1,7 +1,11 @@
-const express = require('express')
-const app = express()
+import express from 'express';
+import cors from 'cors';
+import { MongoClient, ServerApiVersion, ObjectId } from 'mongodb';
+import userRouter from './routers/UserRouter.js';
+import authRouter from './routers/AuthRouter.js'
+
+const app = express();
 const port = process.env.PORT || 5001;
-const cors = require('cors')
 
 //middleware
 app.use(cors());
@@ -9,17 +13,10 @@ app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
-})
-
+});
 
 //mongodb configuration
-
-
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const req = require('express/lib/request');
 const uri = "mongodb+srv://mern-book-store:ZScLNe6PIy7LXfq0@cluster0.5qssgbo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -32,13 +29,13 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-
     // create a collection of ducuments
     const bookCollections = client.db("BookInventory").collection("books");
 
+    app.use('/user', userRouter);
+    app.use('/auth', authRouter);
 
     // insert a book to the db: post method
-
     app.post('/upload-book', async(req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
