@@ -1,22 +1,24 @@
-import express from 'express';
-import cors from 'cors';
-import { MongoClient, ServerApiVersion, ObjectId } from 'mongodb';
-import userRouter from './routers/UserRouter.js';
-import authRouter from './routers/AuthRouter.js'
-
-const app = express();
+const express = require('express')
+const app = express()
+const cors = require('cors')
+require('dotenv').config()
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5001;
+
 
 //middleware
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-});
+//set token
+
 
 //mongodb configuration
-const uri = "mongodb+srv://mern-book-store:ZScLNe6PIy7LXfq0@cluster0.5qssgbo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const req = require('express/lib/request');
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.5qssgbo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -29,11 +31,79 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
     // create a collection of ducuments
     const bookCollections = client.db("BookInventory").collection("books");
+    const usersCollections = client.db("BookInventory").collection("users");
+    // const classesCollections = client.db("BookInventory").collection("classes");
+    const cartCollections = client.db("BookInventory").collection("cart");
+    const paymentCollections = client.db("BookInventory").collection("payments");
+    const enrolledCollections = client.db("BookInventory").collection("enrolled");
+    const appliedCollections = client.db("BookInventory").collection("applied");
 
-    app.use('/user', userRouter);
-    app.use('/auth', authRouter);
+    //routes for users
+    app.post('/api/set-token', async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ASSESS_SECRET, {
+        expiresIn: '24h'
+      });
+      res.send({token})
+    })
+
+    app.post('/new-user', async (req, res) => {
+      const newUser = req.body;
+      const result = await usersCollections.insertOne(newUser);
+      res.send(result);
+    })
+
+    app.get('/users', async (req, res) => {
+      const result = await usersCollections.find({}).toArray();
+      res.send(result);
+    });
+
+    app.get('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await usersCollections.findOne(query);
+      res.send(result);
+    });
+
+    app.get('/user/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = {email: email};
+      const result = await usersCollections.findOne(query);
+      res.send(result);
+    });
+
+    app.delete('/delete-user/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await usersCollections.deleteOne(query);
+      res.send(result);
+    })
+
+    app.put('/update-user/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedUser = req.body;
+      const filter = {_id: new ObjectId(id)};
+      const options = {upsert: true};
+      const updateDoc = {
+        $set: {
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.option,
+          address: updatedUser.address,
+          about: updatedUser.about,
+          photoUrl: updatedUser.photoUrl
+        }
+      }
+
+    const result = await usersCollections.updateOne(filter, updateDoc, options);
+    res.send(result);
+    })
+
+
+
 
     // insert a book to the db: post method
     app.post('/upload-book', async(req, res) => {
