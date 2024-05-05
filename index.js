@@ -2,13 +2,13 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 require('dotenv').config()
+const stripe = require("stripe")(process.env.PAYMENT_SECRET);
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5001;
 
 app.get('/', (req, res) => {
-  res.send('Hello World!')
+  res.send('Book Server is running!')
 })
-
 
 //middleware
 app.use(cors());
@@ -31,7 +31,6 @@ const verifyJWT = (req, res, next) => {
   })
 }
 
-
 //mongodb configuration
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const req = require('express/lib/request');
@@ -48,28 +47,22 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
     // create a collection of ducuments
     const bookCollections = client.db("BookInventory").collection("books");
     const usersCollections = client.db("BookInventory").collection("users");
-    const cartCollections = client.db("BookInventory").collection("cart");
+    const cartCollections = client.db("BookInventory").collection("carts");
     const paymentCollections = client.db("BookInventory").collection("payments");
-    const enrolledCollections = client.db("BookInventory").collection("enrolled");
-    const appliedCollections = client.db("BookInventory").collection("applied");
 
     //routes for users
     app.post('/api/set-token', async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.ASSESS_SECRET, {
-        expiresIn: '24h'
-      });
+      const token = jwt.sign(user, process.env.ASSESS_SECRET, { expiresIn: '24h' });
       res.send({token})
     })
 
-
-    // middleware for admin and instructor
+    // Verify admin
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = {email: email};
@@ -81,28 +74,20 @@ async function run() {
       }
     }
 
-    const verifyInstructor = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = {email: email};
-      const user = await usersCollections.findOne(query);
-      if(user.role === 'instructor'){
-        next();
-      }else{
-        return res.status(401).send({message: 'Unauthorized access'})
-      }
-    }
-
+    //post new user
     app.post('/new-user', async (req, res) => {
       const newUser = req.body;
       const result = await usersCollections.insertOne(newUser);
       res.send(result);
     })
 
+    // get all users
     app.get('/users', async (req, res) => {
       const result = await usersCollections.find({}).toArray();
       res.send(result);
     });
 
+    //get user by id
     app.get('/users/:id', async (req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
@@ -110,6 +95,7 @@ async function run() {
       res.send(result);
     });
 
+    //get user by email
     app.get('/user/:email',verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = {email: email};
@@ -117,6 +103,7 @@ async function run() {
       res.send(result);
     });
 
+    //delete a user
     app.delete('/delete-user/:id',verifyJWT,verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
@@ -124,6 +111,7 @@ async function run() {
       res.send(result);
     })
 
+    //update user
     app.put('/update-user/:id',verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
@@ -143,27 +131,18 @@ async function run() {
     res.send(result);
     })
 
+    //BOOK routes
 
-
-
-    // insert a book to the db: post method
+    // insert a book to db
     app.post('/upload-book', async(req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     })
 
-    //get all books from database
-    // app.get('/all-books', async(req, res) => {
-    //   const books = await bookCollections.find();
-    //   const result = await books.toArray();
-    //   res.send(result);
-    // })
-
     //update a book data : path or update methods
     app.patch('/book/:id', async(req, res) => {
       const id = req.params.id;
-      // console.log(id);
       const updateBookData = req.body;
       const filter = {_id: new ObjectId(id)};
       const options = { upsert: true};
@@ -186,7 +165,7 @@ async function run() {
       res.send(result);
     })
 
-    //find by category
+    //get all books
     app.get('/all-books', async(req, res) => {
       let query = {};
       if(req.query?.category){
@@ -196,13 +175,107 @@ async function run() {
       res.send(result);
     })
 
-    // to get single book data
+    // to get single book data by id
     app.get('/book/:id', async(req, res) => {
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const result = await bookCollections.findOne(filter);
       res.send(result);
     })
+
+    // CART Routes
+    //add to cart to db
+    app.post('/add-to-cart', async (req, res) => {
+      const newCartItem = req.body;
+      const result = await cartCollections.insertOne(newCartItem);
+      res.send(result);
+    })
+
+    //get cart item id for checking if a class is already in cart
+    app.get('/cart-item/:id', async (req, res) => {
+      const id = req.params.id;
+      const email = req.body.email;
+      const query = {
+        bookId: id,
+        userMail: email
+      };
+      const projection = {bookId: 1};
+      const result = await cartCollections.findOne(query, {projection: projection});
+      res.send(result);
+    })
+
+    // cart into by user email
+    app.get('/cart/:email', async (req, res) => {
+      const email = req.email;
+      const query = {userMail: email};
+      const projection = {bookId: 1};
+      const carts = await cartCollections.find(query, {projection: projection});
+      const bookIds = carts.map((cart) => new ObjectId(cart.bookId));
+      const query2 = {_id: {$in: bookIds}};
+      const result = await bookCollections.find(query2).toArray();
+      res.send(result);
+    })
+
+    //delete cart item
+    app.delete('/delete-cart-item/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = {bookId: id};
+      const result = await cartCollections.deleteOne(query);
+      res.send(result);
+    })
+
+    // PAYMENT Routes
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price) * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    })
+
+    // post payment info to db
+    app.post('/payment-info', async (req, res) => {
+      const paymentInfo = req.body;
+      const bookId = paymentInfo.bookId;
+      const userEmail = paymentInfo.userEmail;
+      const singleBookId = req.query.bookId;
+        let query;
+        if(singleBookId){
+          query = {bookId: singleBookId, userMail: userEmail};
+        } else {
+          query = {bookId: {$in: bookId}};
+        }
+
+        const booksQuery = {_id: {$in: bookId.map( id => new ObjectId(id))}};
+        const books = await bookCollections.find(booksQuery).toArray();
+        
+
+      // const updatedInstructor = await userCollection.find()
+      const deletedResult = await cartCollections.deleteMany(query);
+      const paymentResult = await paymentCollections.insertOne(paymentInfo);
+      res.send({ paymentResult, deletedResult});
+    });
+
+    // get payment history
+    app.get('/payment-history/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const result = await paymentCollections.find(query).sort({ date: -1 }).toArray();
+      res.send(result);
+  })
+
+  //payment history length
+  app.get('/payment-history-length/:email', async (req, res) => {
+    const email = req.params.email;
+    const query = { userEmail: email };
+    const total = await paymentCollections.countDocuments(query);
+    res.send({ total });
+})
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
