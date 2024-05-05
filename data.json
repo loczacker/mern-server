@@ -1,0 +1,70 @@
+{
+    "users": [
+        {
+            "_id": "65df65cbb547a06bbad2f018",
+            "name": "Tao Loc",
+            "email": "tienloctao@gmail.com",
+            "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJbHdtBLXUAfOnav07QIzT1pCJbLh…",
+            "role": "admin",
+            "gender": "Is not specified",
+            "address": "Is not Provided",
+            "phone": "Is not Provide"
+        }
+    ],
+    "books": [
+        {
+            "_id": "662763a98b6f727c96f03896",
+            "bookTitle": "House of Sky",
+            "authorName": "Sarah J. Maas",
+            "imageURL": "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1633097753i/40132775.jpg",
+            "category": "Fantasy",
+            "bookDescription": "Bryce Quinlan and Hunt Athalar are trying to get back to normal―they may have saved Crescent City, but with so much upheaval in their lives lately, they mostly want a chance to relax. Slow down. Figure out what the future holds.\n\nThe Asteri have kept their word so far, leaving Bryce and Hunt alone. But with the rebels chipping away at the Asteri’s power, the threat the rulers pose is growing. As Bryce, Hunt, and their friends get pulled into the rebels’ plans, the choice becomes clear: stay silent while others are oppressed, or fight for what’s right. And they’ve never been very good at staying silent.",
+            "bookPDFURL": "https://www.goodreads.com/book/show/40132775-house-of-sky-and-breath",
+            "price": "2"
+        }
+    ],
+    "cart": [
+        {
+            "_id": "65e0a8b1ea542e3f73e3a791",
+            "name": "Progressive Power Flow",
+            "bookId": "65e0a8b1ea542e3f73e3a791",
+            "email": "watson@taylor.com"
+        }
+    ],
+    "enrolled": [
+        {
+            "_id": "65e0a2e390f4342aa374bab6",
+            "userEmail": "eyelark18@gmail.com",
+            "bookId": [
+                {
+                    "0": "65e0a8b1ea542e3f73e3a792"
+                },
+                {
+                    "1": "65e0a8b1ea542e3f73e3a793"
+                }
+            ],
+            "transactionId": "pi_3OpBXRCmx8hfkpYc0Aoc4Hqx"
+        }
+    ],
+    "payments": [
+        {
+            "_id": "65e0a2e490f4342aa374bab7",
+            "transactionId": "pi_3OpBXRCmx8hfkpYc0Aoc4Hqx",
+            "paymentMethod": "pm_1OpBYECmx8hfkpYcaT84EYMN",
+            "amount": 50,
+            "currency": "usd",
+            "paymentStatus": "succeeded",
+            "userName": "Eye Lark",
+            "userEmail": "eyelark18@gmail.com",
+            "bookId": [
+                {
+                    "0": "65e0a8b1ea542e3f73e3a792"
+                },
+                {
+                    "1": "65e0a8b1ea542e3f73e3a793"
+                }
+            ],
+            "date": "2024-02-29T15:29:39.312Z"
+        }
+    ]
+}

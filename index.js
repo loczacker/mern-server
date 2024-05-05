@@ -5,12 +5,31 @@ require('dotenv').config()
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5001;
 
+app.get('/', (req, res) => {
+  res.send('Hello World!')
+})
+
 
 //middleware
 app.use(cors());
 app.use(express.json());
 
-//set token
+//verify token
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if(!authorization){
+    return res.status(401).send({message: 'Invalid authorization'});
+  }
+
+  const token = authorization?.split(' ')[1];
+  jwt.verify(token, process.env.ASSESS_SECRET, (err, decoded) => {
+    if(err){
+      return res.status(403).send({message: 'Forbidden access'});
+    }
+    req.decoded = decoded;
+    next();
+  })
+}
 
 
 //mongodb configuration
@@ -35,7 +54,6 @@ async function run() {
     // create a collection of ducuments
     const bookCollections = client.db("BookInventory").collection("books");
     const usersCollections = client.db("BookInventory").collection("users");
-    // const classesCollections = client.db("BookInventory").collection("classes");
     const cartCollections = client.db("BookInventory").collection("cart");
     const paymentCollections = client.db("BookInventory").collection("payments");
     const enrolledCollections = client.db("BookInventory").collection("enrolled");
@@ -49,6 +67,30 @@ async function run() {
       });
       res.send({token})
     })
+
+
+    // middleware for admin and instructor
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = {email: email};
+      const user = await usersCollections.findOne(query);
+      if(user.role === 'admin'){
+        next();
+      }else{
+        return res.status(401).send({message: 'Forbidden access'})
+      }
+    }
+
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = {email: email};
+      const user = await usersCollections.findOne(query);
+      if(user.role === 'instructor'){
+        next();
+      }else{
+        return res.status(401).send({message: 'Unauthorized access'})
+      }
+    }
 
     app.post('/new-user', async (req, res) => {
       const newUser = req.body;
@@ -68,21 +110,21 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/user/:email', async (req, res) => {
+    app.get('/user/:email',verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = {email: email};
       const result = await usersCollections.findOne(query);
       res.send(result);
     });
 
-    app.delete('/delete-user/:id', async(req, res) => {
+    app.delete('/delete-user/:id',verifyJWT,verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await usersCollections.deleteOne(query);
       res.send(result);
     })
 
-    app.put('/update-user/:id', async (req, res) => {
+    app.put('/update-user/:id',verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
       const filter = {_id: new ObjectId(id)};
@@ -92,7 +134,6 @@ async function run() {
           name: updatedUser.name,
           email: updatedUser.email,
           role: updatedUser.option,
-          address: updatedUser.address,
           about: updatedUser.about,
           photoUrl: updatedUser.photoUrl
         }
