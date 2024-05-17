@@ -96,7 +96,7 @@ async function run() {
     });
 
     //get user by email
-    app.get('/user/:email',verifyJWT, async (req, res) => {
+    app.get('/user/:email', verifyJWT , async (req, res) => {
       const email = req.params.email;
       const query = {email: email};
       const result = await usersCollections.findOne(query);
@@ -104,7 +104,7 @@ async function run() {
     });
 
     //delete a user
-    app.delete('/delete-user/:id',verifyJWT,verifyAdmin, async(req, res) => {
+    app.delete('/delete-user/:id', verifyJWT, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await usersCollections.deleteOne(query);
@@ -112,7 +112,7 @@ async function run() {
     })
 
     //update user
-    app.put('/update-user/:id',verifyJWT, verifyAdmin, async (req, res) => {
+    app.put('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
       const filter = {_id: new ObjectId(id)};
@@ -121,9 +121,11 @@ async function run() {
         $set: {
           name: updatedUser.name,
           email: updatedUser.email,
-          role: updatedUser.option,
+          photoURL: updatedUser.photoURL,
+          role: updatedUser.role,
+          address: updatedUser.address,
+          phone: updatedUser.phone,
           about: updatedUser.about,
-          photoUrl: updatedUser.photoUrl
         }
       }
 
@@ -133,14 +135,14 @@ async function run() {
 
     //BOOK routes
     // insert a book to db
-    app.post('/upload-book', async(req, res) => {
+    app.post('/upload-book', verifyJWT, async(req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     })
 
     //update a book data : path or update methods
-    app.patch('/book/:id', async(req, res) => {
+    app.patch('/book/:id', verifyJWT, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const updateBookData = req.body;
       const filter = {_id: new ObjectId(id)};
@@ -157,7 +159,7 @@ async function run() {
     })
 
     //delete a book data
-    app.delete('/book/:id', async(req, res) => {
+    app.delete('/book/:id', verifyJWT, verifyAdmin, async(req, res) => {
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const result = await bookCollections.deleteOne(filter);
@@ -184,14 +186,14 @@ async function run() {
 
     // CART Routes
     //add to cart to db
-    app.post('/add-to-cart', async (req, res) => {
+    app.post('/add-to-cart', verifyJWT, async (req, res) => {
       const newCartItem = req.body;
       const result = await cartCollections.insertOne(newCartItem);
       res.send(result);
     })
 
     //get cart item id for checking if a class is already in cart
-    app.get('/cart-item/:id', async (req, res) => {
+    app.get('/cart-item/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const email = req.body.email;
       const query = {
@@ -204,19 +206,19 @@ async function run() {
     })
 
     // cart into by user email
-    app.get('/cart/:email', async (req, res) => {
-      const email = req.email;
+    app.get('/cart/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
       const query = {userMail: email};
       const projection = {bookId: 1};
-      const carts = await cartCollections.find(query, {projection: projection});
-      const bookIds = carts.map((cart) => new ObjectId(cart.bookId));
-      const query2 = {_id: {$in: bookIds}};
+      const carts = await cartCollections.find(query, {projection: projection}).toArray();
+      const bookIds = carts.map(cart => new ObjectId(cart.bookId));
+      const query2 = {_id: { $in: bookIds}};
       const result = await bookCollections.find(query2).toArray();
       res.send(result);
     })
 
     //delete cart item
-    app.delete('/delete-cart-item/:id', async (req, res) => {
+    app.delete('/delete-cart-item/:id', verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = {bookId: id};
       const result = await cartCollections.deleteOne(query);
@@ -224,7 +226,7 @@ async function run() {
     })
 
     // PAYMENT Routes
-    app.post('/create-payment-intent', async (req, res) => {
+    app.post('/create-payment-intent', verifyJWT, async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price) * 100;
       const paymentIntent = await stripe.paymentIntents.create({
@@ -238,7 +240,7 @@ async function run() {
     })
 
     // post payment info to db
-    app.post('/payment-info', async (req, res) => {
+    app.post('/payment-info', verifyJWT, async (req, res) => {
       const paymentInfo = req.body;
       const bookId = paymentInfo.bookId;
       const userEmail = paymentInfo.userEmail;
@@ -274,6 +276,17 @@ async function run() {
     const query = { userEmail: email };
     const total = await paymentCollections.countDocuments(query);
     res.send({ total });
+})
+
+  //Admins stats
+  app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
+    // Get approved classes and pending classes and instructors 
+    const totalBook = (await bookCollections.find().toArray()).length;
+    const result = {
+      totalBook
+    }
+    res.send(result);
+
 })
 
     // Send a ping to confirm a successful connection

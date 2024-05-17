@@ -5,7 +5,6 @@
       "email": "tienloctao@gmail.com",
       "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJREWu6wmpe6lhZAMcQUWk77DU2RIVQ5M8aTi1Vdwag=s96-c",
       "role": "admin",
-      "gender": "Is not specified",
       "address": "Is not Provided",
       "phone": "Is not Provide",
       "about": ""
@@ -15,7 +14,6 @@
       "name": "Ema",
       "email": "ema@gmail.com",
       "photoUrl": "https://randomuser.me/api/portraits/women/17.jpg",
-      "gender": "female",
       "address": "West Bengal",
       "role": "user",
       "phone": "0134567894",
