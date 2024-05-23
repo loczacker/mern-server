@@ -120,9 +120,8 @@ async function run() {
       const updateDoc = {
         $set: {
           name: updatedUser.name,
-          email: updatedUser.email,
           photoURL: updatedUser.photoURL,
-          role: updatedUser.role,
+          role: 'user',
           address: updatedUser.address,
           phone: updatedUser.phone,
           about: updatedUser.about,
@@ -135,14 +134,14 @@ async function run() {
 
     //BOOK routes
     // insert a book to db
-    app.post('/upload-book', verifyJWT, async(req, res) => {
+    app.post('/upload-book', async(req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     })
 
     //update a book data : path or update methods
-    app.patch('/book/:id', verifyJWT, verifyAdmin, async(req, res) => {
+    app.patch('/book/:id', async(req, res) => {
       const id = req.params.id;
       const updateBookData = req.body;
       const filter = {_id: new ObjectId(id)};
@@ -159,7 +158,7 @@ async function run() {
     })
 
     //delete a book data
-    app.delete('/book/:id', verifyJWT, verifyAdmin, async(req, res) => {
+    app.delete('/book/:id', async(req, res) => {
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const result = await bookCollections.deleteOne(filter);
