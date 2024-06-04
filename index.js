@@ -96,7 +96,7 @@ async function run() {
     });
 
     //get user by email
-    app.get('/user/:email', verifyJWT , async (req, res) => {
+    app.get('/user/:email' , async (req, res) => {
       const email = req.params.email;
       const query = {email: email};
       const result = await usersCollections.findOne(query);
@@ -106,22 +106,39 @@ async function run() {
     //delete a user
     app.delete('/delete-user/:id', verifyJWT, verifyAdmin, async(req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = {_id: id};
       const result = await usersCollections.deleteOne(query);
       res.send(result);
     })
 
-    //update user
-    app.put('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
+    //update user by id
+    app.patch('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
       const filter = {_id: new ObjectId(id)};
       const options = {upsert: true};
       const updateDoc = {
         $set: {
+          ...updatedUser
+        }
+      }
+
+    const result = await usersCollections.updateOne(filter, updateDoc, options);
+    res.send(result);
+    })
+
+    //update user by email
+    app.put('/update-user/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const role = 'user'
+      const updatedUser = req.body;
+      const filter = {email: new ObjectId(email)};
+      const options = {upsert: true};
+      const updateDoc = {
+        $set: {
           name: updatedUser.name,
           photoURL: updatedUser.photoURL,
-          role: 'user',
+          role: role,
           address: updatedUser.address,
           phone: updatedUser.phone,
           about: updatedUser.about,
