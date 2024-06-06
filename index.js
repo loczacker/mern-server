@@ -81,6 +81,18 @@ async function run() {
       res.send(result);
     })
 
+    //check email
+    app.get('/check-email/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollections.findOne({ email: email });
+      if (user) {
+          res.send({ exists: true });
+      } else {
+          res.send({ exists: false });
+      }
+  });
+  
+
     // get all users
     app.get('/users', async (req, res) => {
       const result = await usersCollections.find({}).toArray();
@@ -244,7 +256,7 @@ async function run() {
     // PAYMENT Routes
     app.post('/create-payment-intent', verifyJWT, async (req, res) => {
       const { price } = req.body;
-      const amount = parseInt(price) * 100;
+      const amount = parseFloat(price) * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
@@ -267,11 +279,7 @@ async function run() {
         } else {
           query = {bookId: {$in: bookId}};
         }
-
-        const booksQuery = {_id: {$in: bookId.map( id => new ObjectId(id))}};
-        const books = await bookCollections.find(booksQuery).toArray();
         
-
       // const updatedInstructor = await userCollection.find()
       const deletedResult = await cartCollections.deleteMany(query);
       const paymentResult = await paymentCollections.insertOne(paymentInfo);
