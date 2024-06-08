@@ -4,7 +4,13 @@ const cors = require('cors')
 require('dotenv').config()
 const stripe = require("stripe")(process.env.PAYMENT_SECRET);
 const jwt = require("jsonwebtoken");
+const admin = require('firebase-admin');
 const port = process.env.PORT || 5001;
+
+const serviceAccount = require('./config/book-mern-stack-firebase-adminsdk-22c6s-ee427e66e2.json');
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
 app.get('/', (req, res) => {
   res.send('Book Server is running!')
@@ -116,12 +122,26 @@ async function run() {
     });
 
     //delete a user
-    app.delete('/delete-user/:id', verifyJWT, verifyAdmin, async(req, res) => {
+    app.delete('/delete-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      const query = {_id: id};
-      const result = await usersCollections.deleteOne(query);
-      res.send(result);
-    })
+      const query = { _id: id };
+
+      try {
+        // Delete user from MongoDB
+        const result = await usersCollections.deleteOne(query);
+
+        if (result.deletedCount === 1) {
+          // Delete user from Firebase Authentication
+          await admin.auth().deleteUser(id);
+          res.send({ message: 'User deleted successfully' });
+        } else {
+          res.status(404).send({ message: 'User not found' });
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).send({ message: 'Failed to delete user' });
+      }
+    });
 
     //update user by id
     app.patch('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
