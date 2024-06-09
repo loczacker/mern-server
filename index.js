@@ -108,7 +108,7 @@ async function run() {
     //get user by id
     app.get('/users/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = {_id: id};
       const result = await usersCollections.findOne(query);
       res.send(result);
     });
@@ -147,7 +147,7 @@ async function run() {
     app.patch('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
-      const filter = {_id: new ObjectId(id)};
+      const filter = {_id: id};
       const options = {upsert: true};
       const updateDoc = {
         $set: {
@@ -158,29 +158,6 @@ async function run() {
     const result = await usersCollections.updateOne(filter, updateDoc, options);
     res.send(result);
     })
-
-    //update user by email
-    app.put('/update-user/:email', verifyJWT, async (req, res) => {
-      const email = req.params.email;
-      const role = 'user'
-      const updatedUser = req.body;
-      const filter = {email: new ObjectId(email)};
-      const options = {upsert: true};
-      const updateDoc = {
-        $set: {
-          name: updatedUser.name,
-          photoURL: updatedUser.photoURL,
-          role: role,
-          address: updatedUser.address,
-          phone: updatedUser.phone,
-          about: updatedUser.about,
-        }
-      }
-
-    const result = await usersCollections.updateOne(filter, updateDoc, options);
-    res.send(result);
-    })
-
     //BOOK routes
     // insert a book to db
     app.post('/upload-book', async(req, res) => {
