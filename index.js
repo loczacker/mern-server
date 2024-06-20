@@ -23,14 +23,14 @@ app.use(express.json());
 //verify token
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
-  if(!authorization){
-    return res.status(401).send({message: 'Invalid authorization'});
+  if (!authorization) {
+    return res.status(401).send({ message: 'Invalid authorization' });
   }
 
   const token = authorization?.split(' ')[1];
   jwt.verify(token, process.env.ASSESS_SECRET, (err, decoded) => {
-    if(err){
-      return res.status(403).send({message: 'Forbidden access'});
+    if (err) {
+      return res.status(403).send({ message: 'Forbidden access' });
     }
     req.decoded = decoded;
     next();
@@ -60,23 +60,25 @@ async function run() {
     const usersCollections = client.db("BookInventory").collection("users");
     const cartCollections = client.db("BookInventory").collection("carts");
     const paymentCollections = client.db("BookInventory").collection("payments");
+    const favouriteCollections = client.db("BookInventory").collection("favourite");
+    const purchasedCollections = client.db("BookInventory").collection("purchased");
 
     //routes for users
     app.post('/api/set-token', async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ASSESS_SECRET, { expiresIn: '24h' });
-      res.send({token})
+      res.send({ token })
     })
 
     // Verify admin
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = {email: email};
+      const query = { email: email };
       const user = await usersCollections.findOne(query);
-      if(user.role === 'admin'){
+      if (user.role === 'admin') {
         next();
-      }else{
-        return res.status(401).send({message: 'Forbidden access'})
+      } else {
+        return res.status(401).send({ message: 'Forbidden access' })
       }
     }
 
@@ -92,12 +94,12 @@ async function run() {
       const email = req.params.email;
       const user = await usersCollections.findOne({ email: email });
       if (user) {
-          res.send({ exists: true });
+        res.send({ exists: true });
       } else {
-          res.send({ exists: false });
+        res.send({ exists: false });
       }
-  });
-  
+    });
+
 
     // get all users
     app.get('/users', async (req, res) => {
@@ -108,15 +110,15 @@ async function run() {
     //get user by id
     app.get('/users/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {_id: id};
+      const query = { _id: id };
       const result = await usersCollections.findOne(query);
       res.send(result);
     });
 
     //get user by email
-    app.get('/user/:email' , async (req, res) => {
+    app.get('/user/:email', async (req, res) => {
       const email = req.params.email;
-      const query = {email: email};
+      const query = { email: email };
       const result = await usersCollections.findOne(query);
       res.send(result);
     });
@@ -144,34 +146,34 @@ async function run() {
     });
 
     //update user by id
-    app.patch('/update-user/:id', verifyJWT, verifyAdmin, async (req, res) => {
+    app.patch('/update-user/:id', async (req, res) => {
       const id = req.params.id;
       const updatedUser = req.body;
-      const filter = {_id: id};
-      const options = {upsert: true};
+      const filter = { _id: id };
+      const options = { upsert: true };
       const updateDoc = {
         $set: {
           ...updatedUser
         }
       }
 
-    const result = await usersCollections.updateOne(filter, updateDoc, options);
-    res.send(result);
+      const result = await usersCollections.updateOne(filter, updateDoc, options);
+      res.send(result);
     })
     //BOOK routes
     // insert a book to db
-    app.post('/upload-book', async(req, res) => {
+    app.post('/upload-book', async (req, res) => {
       const data = req.body;
       const result = await bookCollections.insertOne(data);
       res.send(result);
     })
 
     //update a book data : path or update methods
-    app.patch('/book/:id', async(req, res) => {
+    app.patch('/book/:id', async (req, res) => {
       const id = req.params.id;
       const updateBookData = req.body;
-      const filter = {_id: new ObjectId(id)};
-      const options = { upsert: true};
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
 
       const updateDoc = {
         $set: {
@@ -184,103 +186,155 @@ async function run() {
     })
 
     //delete a book data
-    app.delete('/book/:id', async(req, res) => {
+    app.delete('/book/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const result = await bookCollections.deleteOne(filter);
       res.send(result);
     })
 
     //get all books
-    app.get('/all-books', async(req, res) => {
+    app.get('/all-books', async (req, res) => {
       let query = {};
-      if(req.query?.category){
-        query = {category: req.query.category}
+      if (req.query?.category) {
+        query = { category: req.query.category }
       }
       const result = await bookCollections.find(query).toArray();
       res.send(result);
     })
 
     // to get single book data by id
-    app.get('/book/:id', async(req, res) => {
+    app.get('/book/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
+      const filter = { _id: new ObjectId(id) };
       const result = await bookCollections.findOne(filter);
       res.send(result);
     })
 
-    // CART Routes
-    //add to cart to db
-    app.post('/add-to-cart', verifyJWT, async (req, res) => {
+    // Favourite Routes
+    //add to favourite to db
+    app.post('/add-to-favourite', async (req, res) => {
       const newCartItem = req.body;
-      const result = await cartCollections.insertOne(newCartItem);
+      const result = await favouriteCollections.insertOne(newCartItem);
       res.send(result);
     })
 
-    //get cart item id for checking if a class is already in cart
-    app.get('/cart-item/:id', verifyJWT, async (req, res) => {
+    //get favourite item id for checking if a book is already in favourite
+    app.get('/favourite-item/:id', async (req, res) => {
       const id = req.params.id;
       const email = req.body.email;
       const query = {
         bookId: id,
         userMail: email
       };
-      const projection = {bookId: 1};
-      const result = await cartCollections.findOne(query, {projection: projection});
+      const projection = { bookId: 1 };
+      const result = await favouriteCollections.findOne(query, { projection: projection });
       res.send(result);
     })
 
-    // cart into by user email
-    app.get('/cart/:email', verifyJWT, async (req, res) => {
+    // favourite into by user email
+    app.get('/favourite/:email', async (req, res) => {
       const email = req.params.email;
-      const query = {userMail: email};
-      const projection = {bookId: 1};
-      const carts = await cartCollections.find(query, {projection: projection}).toArray();
-      const bookIds = carts.map(cart => new ObjectId(cart.bookId));
-      const query2 = {_id: { $in: bookIds}};
+      const query = { userMail: email };
+      const projection = { bookId: 1 };
+      const favourites = await favouriteCollections.find(query, { projection: projection }).toArray();
+      const bookIds = favourites.map(cart => new ObjectId(cart.bookId));
+      const query2 = { _id: { $in: bookIds } };
       const result = await bookCollections.find(query2).toArray();
       res.send(result);
     })
 
-    //delete cart item
-    app.delete('/delete-cart-item/:id', verifyJWT, async (req, res) => {
+    //delete favourite item
+    app.delete('/delete-favourite-item/:id', async (req, res) => {
       const id = req.params.id;
-      const query = {bookId: id};
+      const query = { bookId: id };
+      const result = await favouriteCollections.deleteOne(query);
+      res.send(result);
+    })
+
+    // CART Routes
+    //add to cart to db
+    app.post('/add-to-cart', async (req, res) => {
+      const newCartItem = req.body;
+      const result = await cartCollections.insertOne(newCartItem);
+      res.send(result);
+    })
+
+    //get cart item id for checking if a class is already in cart
+    app.get('/cart-item/:id', async (req, res) => {
+      const id = req.params.id;
+      const email = req.body.email;
+      const query = {
+        bookId: id,
+        userMail: email
+      };
+      const projection = { bookId: 1 };
+      const result = await cartCollections.findOne(query, { projection: projection });
+      res.send(result);
+    })
+
+    // cart into by user email
+    app.get('/cart/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { userMail: email };
+      const projection = { bookId: 1 };
+      const carts = await cartCollections.find(query, { projection: projection }).toArray();
+      const bookIds = carts.map(cart => new ObjectId(cart.bookId));
+      const query2 = { _id: { $in: bookIds } };
+      const result = await bookCollections.find(query2).toArray();
+      res.send(result);
+    })
+
+    //delete a item from cart
+    app.delete('/delete-cart-item/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { bookId: id };
       const result = await cartCollections.deleteOne(query);
       res.send(result);
     })
 
     // PAYMENT Routes
-    app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+    app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
-      const amount = parseFloat(price) * 100;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: "usd",
-        payment_method_types: ["card"],
-      });
-      res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
-    })
+      const amount = Math.round(parseFloat(price) * 100);
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        console.error('Error creating payment intent:', error);
+        res.status(500).send({ error: 'Failed to create payment intent' });
+      }
+    });
+    
 
     // post payment info to db
-    app.post('/payment-info', verifyJWT, async (req, res) => {
+    app.post('/payment-info', async (req, res) => {
       const paymentInfo = req.body;
       const bookId = paymentInfo.bookId;
       const userEmail = paymentInfo.userEmail;
       const singleBookId = req.query.bookId;
-        let query;
-        if(singleBookId){
-          query = {bookId: singleBookId, userMail: userEmail};
-        } else {
-          query = {bookId: {$in: bookId}};
-        }
-        
-      // const updatedInstructor = await userCollection.find()
+      let query;
+      if (singleBookId) {
+        query = { bookId: singleBookId, userMail: userEmail };
+      } else {
+        query = { bookId: { $in: bookId } };
+      }
+      const newPurchasedData = {
+        userEmail: userEmail,
+        bookId: bookId.map(id => new ObjectId(id)),
+        transactionId: paymentInfo.transactionId,
+      }
+
       const deletedResult = await cartCollections.deleteMany(query);
       const paymentResult = await paymentCollections.insertOne(paymentInfo);
-      res.send({ paymentResult, deletedResult});
+      const purchasedResult = await purchasedCollections.insertOne(newPurchasedData);
+      res.send({ paymentResult, deletedResult, purchasedResult });
     });
 
     // get payment history
@@ -289,26 +343,71 @@ async function run() {
       const query = { userEmail: email };
       const result = await paymentCollections.find(query).sort({ date: -1 }).toArray();
       res.send(result);
-  })
+    })
 
-  //payment history length
-  app.get('/payment-history-length/:email', async (req, res) => {
+    //payment history length
+    app.get('/payment-history-length/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const total = await paymentCollections.countDocuments(query);
+      res.send({ total });
+    })
+
+// PURCHASED ROUTES
+app.get('/purchased-books/:email', async (req, res) => {
+  try {
     const email = req.params.email;
     const query = { userEmail: email };
-    const total = await paymentCollections.countDocuments(query);
-    res.send({ total });
-})
+    
+    // Sử dụng aggregate để thực hiện truy vấn phức tạp
+    const pipeline = [
+      {
+        $match: query
+      },
+      {
+        $lookup: {
+          from: "books",
+          localField: "bookId",
+          foreignField: "_id",
+          as: "purchasedBooks"
+        }
+      },
+      {
+        $unwind: "$purchasedBooks"
+      },
+      {
+        $project: {
+          _id: "$purchasedBooks._id",
+          bookTitle: "$purchasedBooks.bookTitle",
+          authorName: "$purchasedBooks.authorName",
+          imageURL: "$purchasedBooks.imageURL",
+          category: "$purchasedBooks.category",
+          bookDescription: "$purchasedBooks.bookDescription",
+          bookPDFURL: "$purchasedBooks.bookPDFURL",
+          price: "$purchasedBooks.price"
+        }
+      }
+    ];
 
-  //Admins stats
-  app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
-    // Get approved classes and pending classes and instructors 
-    const totalBook = (await bookCollections.find().toArray()).length;
-    const result = {
-      totalBook
-    }
+    const result = await purchasedCollections.aggregate(pipeline).toArray();
     res.send(result);
+  } catch (error) {
+    console.error("Error fetching purchased books:", error);
+    res.status(500).send({ message: 'Failed to fetch purchased books' });
+  }
+});
 
-})
+
+    //Admins stats
+    app.get('/admin-stats', verifyJWT, verifyAdmin, async (req, res) => {
+      // Get approved classes and pending classes and instructors 
+      const totalBook = (await bookCollections.find().toArray()).length;
+      const result = {
+        totalBook
+      }
+      res.send(result);
+
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
